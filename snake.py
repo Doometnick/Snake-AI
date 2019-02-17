@@ -12,13 +12,15 @@ class Snake():
         self.color = color
         self.head = Cube(pos, self.color)
         self.body.append(self.head)
+        self.grow()
         self.dirnx = 0
         self.dirny = -1
 
     def move(self):
 
         if gm.auto_movement:
-            self._auto_movement()
+            #self._auto_movement()
+            pass
         else:
             self._handle_input()
 
@@ -41,22 +43,34 @@ class Snake():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_LEFT]: self.turn_left()
-            if keys[pygame.K_RIGHT]: self.turn_right()
-            if keys[pygame.K_UP]: self.turn_up()
-            if keys[pygame.K_DOWN]: self.turn_down()
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]: self.turn_left()
+        if keys[pygame.K_RIGHT]: self.turn_right()
+        if keys[pygame.K_UP]: self.turn_up()
+        if keys[pygame.K_DOWN]: self.turn_down()
 
-    def _auto_movement(self):
-        num = random.randint(0, 100)
-        if num < 2:
-            self.turn_down()
-        elif num < 4:
-            self.turn_up()
-        elif num < 6:
-            self.turn_left()
-        elif num < 8:
-            self.turn_right()
+    def _auto_movement(self, move_vector: tuple):
+        """ Controls the snake's movement using a 3-state variable.
+            :param move_vector: Tuple of size 3. A 1 indicates move in a certain direction.
+                                (1, 0, 0) move to left
+                                (0, 1, 0) move straight
+                                (0, 0, 1) move to right
+        """
+        
+        dirx, diry = self.dirnx, self.dirny
+        if move_vector == (1, 0, 0):
+            if diry == 0: # horz right-turn
+                dirx, diry = 0, -dirx
+            elif dirx == 0: # vert right-turn
+                diry, dirx = 0, diry
+        elif move_vector == (0, 0, 1):
+            if diry == 0: # horz left-turn
+                dirx, diry = 0, dirx
+            elif dirx == 0: # vert left-turn
+                diry, dirx = 0, -diry
+        self.dirnx, self.dirny = dirx, diry
+        self.turns[self.head.pos[:]] = [self.dirnx, self.dirny]
+        
 
     def grow(self, by=1):
         for _ in range(by):
