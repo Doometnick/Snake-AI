@@ -16,11 +16,118 @@ class Snake():
         self.dirnx = 0
         self.dirny = -1
 
-    def move(self):
+    @property
+    def is_dead(self):
+        # Wall collision
+        if self.colliding_bottom \
+            or self.colliding_top \
+            or self.colliding_left \
+            or self.colliding_right:
+            return True
+        # Collision with own tail
+        for x in range(len(self.body)):
+            if self.body[x].pos in list(map(lambda z: z.pos, self.body[x +1:])):
+                return True
+        
+        return False
+
+    @property
+    def body_length(self):
+        return len(self.body)
+
+    @property
+    def pos_x(self):
+        return self.body[0].pos[0]
+
+    @property
+    def pos_y(self):
+        return self.body[0].pos[1]
+
+    @property
+    def going_up(self):
+        return self.dirny < 0
+
+    @property
+    def going_down(self):
+        return self.dirny > 0
+
+    @property
+    def going_left(self):
+        return self.dirnx < 0
+
+    @property
+    def going_right(self):
+        return self.dirnx > 0
+
+    @property
+    def colliding_top(self):
+        return self.pos_y < 0
+
+    @property
+    def colliding_bottom(self):
+        return self.pos_y >= gm.rows
+
+    @property
+    def colliding_left(self):
+        return self.pos_x < 0
+
+    @property
+    def colliding_right(self):
+        return self.pos_y >= gm.rows
+
+    @property
+    def obstacle_ahead(self):
+        """ Returns true if the snake's own body or
+            a game boundary is directly in front of its head
+        """
+        # coordinates of head
+        x, y = self.body[0].pos
+        # return true if raycast to new destination hits own body
+        if self.dirnx == 0:
+            direction = 1 if self.dirny > 0 else -1
+            check_pos = (x, y + direction)
+            return (check_pos[1] >= gm.rows or check_pos[1] < 0) or (check_pos in self.body)
+        elif self.dirny == 0:
+            direction = 1 if self.dirnx > 0 else -1
+            check_pos = (x + direction, y)
+            return (check_pos[1] >= gm.rows or check_pos[0] < 0) or (check_pos in self.body)
+        return False
+
+    @property
+    def obstacle_left_right(self):
+        """ Returns a tuple of bools indicating if the snake's own
+            body or a game noundary is directly to the right/left of the snake's head
+        """
+        # coordinates of head
+        x, y = self.body[0].pos
+        if self.dirnx == 0:
+            direction = 1 if self.dirny > 0 else -1
+            check_right = (x - direction, y)
+            check_left = (x + direction, y)
+
+        elif self.dirny == 0:
+            direction = 1 if self.dirnx > 0 else -1
+            check_right = (x, y - direction)
+            check_left = (x, y + direction)
+
+        else:
+            print("Warning: obstacle_left_right cannot determine direction!")
+
+        return check_left in self.body, check_right in self.body
+
+    
+
+    def has_eaten(self, position):
+        """ Returns true if the head is in the same position as parameter position.
+        """
+        return self.body[0].pos == position
+
+    def move(self, move_vec=None):
 
         if gm.auto_movement:
-            #self._auto_movement()
-            pass
+            if move_vec is None:
+                raise ValueError("Cannot move automatically if move_vec is None.")
+            self._auto_movement(move_vec)
         else:
             self._handle_input()
 
@@ -32,12 +139,14 @@ class Snake():
                 if i == len(self.body) - 1:
                     self.turns.pop(p)
             else:
-                # Check if we keep moving or switch sides
-                if cube.dirnx == -1 and cube.pos[0] <= 0: cube.pos = (cube.rows - 1, cube.pos[1])
-                elif cube.dirnx == 1 and cube.pos[0] >= cube.rows - 1: cube.pos = (0, cube.pos[1])
-                elif cube.dirny == 1 and cube.pos[1] >= cube.rows - 1: cube.pos = (cube.pos[0], 0)
-                elif cube.dirny == -1 and cube.pos[1] <= 0: cube.pos = (cube.pos[0], cube.rows - 1)
-                else: cube.move(cube.dirnx, cube.dirny)
+                cube.move(cube.dirnx, cube.dirny)
+            #     # Check if we keep moving or switch sides
+            #     if cube.pos[0] < 0: cube.pos = (cube.rows - 1, cube.pos[1])
+            #     elif cube.pos[0] > cube.rows - 1: cube.pos = (0, cube.pos[1])
+            #     elif cube.pos[1] > cube.rows - 1: cube.pos = (cube.pos[0], 0)
+            #     elif cube.pos[1] < 0: cube.pos = (cube.pos[0], cube.rows - 1)
+            #     else: cube.move(cube.dirnx, cube.dirny)
+            
 
     def _handle_input(self):
         for event in pygame.event.get():
@@ -49,27 +158,28 @@ class Snake():
         if keys[pygame.K_UP]: self.turn_up()
         if keys[pygame.K_DOWN]: self.turn_down()
 
-    def _auto_movement(self, move_vector: tuple):
+    def _auto_movement(self, move_vector):
         """ Controls the snake's movement using a 3-state variable.
             :param move_vector: Tuple of size 3. A 1 indicates move in a certain direction.
                                 (1, 0, 0) move to left
                                 (0, 1, 0) move straight
                                 (0, 0, 1) move to right
-        """
-        
+        """        
         dirx, diry = self.dirnx, self.dirny
-        if move_vector == (1, 0, 0):
+        if move_vector[0] == 1:
             if diry == 0: # horz right-turn
                 dirx, diry = 0, -dirx
             elif dirx == 0: # vert right-turn
                 diry, dirx = 0, diry
-        elif move_vector == (0, 0, 1):
+            self.turns[self.head.pos[:]] = [dirx, diry]
+        elif move_vector[2] == 1:
             if diry == 0: # horz left-turn
                 dirx, diry = 0, dirx
             elif dirx == 0: # vert left-turn
                 diry, dirx = 0, -diry
+            self.turns[self.head.pos[:]] = [dirx, diry]
         self.dirnx, self.dirny = dirx, diry
-        self.turns[self.head.pos[:]] = [self.dirnx, self.dirny]
+        # self.turns[self.head.pos[:]] = [self.dirnx, self.dirny]
         
 
     def grow(self, by=1):
@@ -93,6 +203,7 @@ class Snake():
         self.head = Cube(pos, self.color)
         self.body = []
         self.body.append(self.head)
+        self.grow()
         self.turns = {}
         self.dirnx = 0
         self.dirny = 1

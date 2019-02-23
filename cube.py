@@ -10,6 +10,14 @@ class Cube:
         self.color = color
         self.rows = gm.rows
 
+    @property
+    def pos_x(self):
+        return self.pos[0]
+
+    @property
+    def pos_y(self):
+        return self.pos[1]
+
     def move(self, dirnx, dirny):
         self.dirnx = dirnx
         self.dirny = dirny
