@@ -1,5 +1,8 @@
 import gamemanager as gm
+import numpy as np
 import pygame
+import sys
+
 
 class Cube:
 
@@ -34,3 +37,39 @@ class Cube:
             circleMid2 = (row * dis + centre + radius, col * dis + 8)
             pygame.draw.circle(surface, (0, 0, 0), circleMid, radius)
             pygame.draw.circle(surface, (0, 0, 0), circleMid2, radius)
+
+    def get_angle_to_point(self, x, y, norm=True):
+        """ Returns a normalized angle [-1;1] from 
+            the snake's direction towards the point (x, y). 
+            If norm is True, result will be between 0 and 1.
+        """
+        if x >= self.pos_x and y <= self.pos_y:
+            a = abs(self.pos_y - y)
+            b = abs(self.pos_x - x)
+            c = np.sqrt(a ** 2 + b ** 2)
+            sin_a = np.sin(a / c)
+            alpha = np.degrees(np.arcsin(sin_a))
+        elif x < self.pos_x and y <= self.pos_y:
+            a = abs(self.pos_x - x)
+            b = abs(self.pos_y - y)
+            c = np.sqrt(a ** 2 + b ** 2)
+            sin_a = np.sin(a / c)
+            alpha = 90 + np.degrees(np.arcsin(sin_a))
+        elif x < self.pos_x and y > self.pos_y:
+            a = abs(self.pos_y - y)
+            b = abs(self.pos_x - x)
+            c = np.sqrt(a ** 2 + b ** 2)
+            sin_a = np.sin(a / c)
+            alpha = 180 + np.degrees(np.arcsin(sin_a))
+        else:
+            a = abs(self.pos_y - y)
+            b = abs(self.pos_x - x)
+            c = np.sqrt(a ** 2 + b ** 2)
+            sin_a = np.sin(a / c)
+            alpha = 360 - np.degrees(np.arcsin(sin_a))
+        if norm:
+            alpha = alpha / 360
+        if c == 0:
+            print("Division by zero in get_angle_to_point!")
+            sys.exit("PROGRAM STOPPED")
+        return alpha

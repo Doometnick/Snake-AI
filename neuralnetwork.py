@@ -11,50 +11,52 @@ import os
 
 class NeuralNet:
 
-    def __init__(self):
+    def __init__(self, game_width):
         self.loss = "mse"
         self.reward = 0
-        self.learning_rate = .0005
+        self.learning_rate = .01
         self.gamma = .9
-        self.n_states = 11
+        self.n_states = 8
         self.model = self._setup()
-        self.memory = []
         self.memory_states = []
         self.outcomes = []
         
-
     def get_state(self, player, food):
-        state = []
-        state.append(player.obstacle_ahead)
-        state.extend(player.obstacle_left_right)
-        state.extend([player.going_up,
-                      player.going_down,
-                      player.going_left,
-                      player.going_right
-        ])
-        state.extend([food.pos_x < player.pos_x,
-                      food.pos_x > player.pos_x,
-                      food.pos_y < player.pos_y,
-                      food.pos_y > player.pos_y
-        ])
+        left, right = player.obstacle_left_right
+        obstacles = np.array([int(player.obstacle_ahead), int(left), int(right)]).flatten()
+        directions = np.array([int(player.going_up), int(player.going_down), int(player.going_left), int(player.going_right)])
+        angle = np.array([food.get_angle_to_point(player.pos_x, player.pos_y, norm=True)])
+        return np.concatenate((obstacles, directions, angle))
+
+    # def get_state(self, player, food, rows):
+    #     left, right = player.obstacle_left_right
+    #     obstacles = np.array([int(player.obstacle_ahead), int(left), int(right)]).flatten()
+    #     directions = np.array([int(player.going_up), int(player.going_down), int(player.going_left), int(player.going_right)])
+    #     angle = np.array([food.get_angle_to_point(player.pos_x, player.pos_y, norm=True)])
+
+    #     grid = np.zeros((rows + 2, rows + 2))
+    #     for cube in player.body:
+    #         x, y = cube.pos
+    #     return np.concatenate((obstacles, directions, angle))
         
-        state = np.asarray([int(s) for s in state])
-        return state
-    
-    def update_reward(self, food_reached=None, game_over=None):
-        if game_over:
+    def update_reward(self, food_reached, food_dist_chng, game_over):
+        if game_over is True:
             reward = -10
-        elif food_reached:
+        elif food_reached is True:
             reward = 10
         else:
             reward = 0
+        if food_dist_chng < 0:
+            reward += 1
+        elif food_dist_chng > 0:
+            reward -= 1
         self.reward = reward
 
     def _setup(self, weights=None):
         model = Sequential()
         model.add(Dense(50, activation="relu", input_shape=(self.n_states, )))
         model.add(Dropout(0.1))
-        # model.add(Dense(250, activation='relu'))
+        # model.add(Dense(500, activation='relu'))
         # model.add(Dropout(0.1))
         # model.add(Dense(250, activation='relu'))
         # model.add(Dropout(0.1))
@@ -69,22 +71,24 @@ class NeuralNet:
         # self.memory.append((state, action, self.reward, next_state, game_over))
         target = self.reward
         if not game_over:
-            target = self.reward + self.gamma * np.amax(self.model.predict(np.array([next_state]))[0])
+            target = max(self.reward + self.gamma * np.amax(self.model.predict(np.array([next_state]))[0]), 0)
         target_f = self.model.predict(np.array([state]))
         target_f[0][np.argmax(action)] = target
         self.memory_states.append(np.array(state))
         self.outcomes.append(target_f.flatten())
     
     def replay_new(self):
-        # if len(self.memory) > 50000:
+        # if len(self.memory_states) > 50000:
         #     print("Reducing memory")
-        #     self.memory = self.memory[-50000:]
-        if len(self.outcomes) > 50000:
-            self.outcomes = self.outcomes[-50000:]
-            self.memory_states = self.memory_states[-50000:]
-            print("Reducing memory")
+        #     self.memory_states = self.memory_states[-50000:]
+        #     self.outcomes = self.outcomes[-50000:]
+        print(f"Memory length: {len(self.outcomes)}")
+        # if len(self.outcomes) > 50000:
+        #     self.outcomes = self.outcomes[-50000:]
+        #     self.memory_states = self.memory_states[-50000:]
+        #     print("Reducing memory")
         
-        print("Memory length: " + str(len(self.memory)))
+        # print("Memory length: " + str(len(self.memory)))
         # print("Preparing data for training...")
 
         # minibatch = self.memory

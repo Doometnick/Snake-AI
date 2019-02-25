@@ -3,7 +3,7 @@ import os
 
 FLD = "Results"
 
-DESCRIPTION = "Walls 11-50-3 50Kmry 10ep lr0005"
+DESCRIPTION = "20 Rows"
 
 def load_pickle(file_name):
     try:
@@ -26,3 +26,7 @@ def get_full_path(filename):
 
 def exists(file_path):
     return os.path.exists(file_path)
+
+def reset_folder():
+        folder = os.path.join(FLD, DESCRIPTION)
+        os.rmdir(folder)

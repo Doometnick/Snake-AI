@@ -2,6 +2,7 @@ import gamemanager as gm
 from cube import Cube
 import pygame
 import random
+import numpy as np
 
 
 class Snake():
@@ -12,9 +13,9 @@ class Snake():
         self.color = color
         self.head = Cube(pos, self.color)
         self.body.append(self.head)
-        self.grow()
         self.dirnx = 0
         self.dirny = -1
+        self.grow()
 
     @property
     def is_dead(self):
@@ -73,7 +74,23 @@ class Snake():
 
     @property
     def colliding_right(self):
-        return self.pos_y >= gm.rows
+        return self.pos_x >= gm.rows
+
+    @property
+    def tail_going_up(self):
+        return self.body[-1].dirny < 0
+
+    @property
+    def tail_going_down(self):
+        return self.body[-1].dirny > 0
+
+    @property
+    def tail_going_left(self):
+        return self.body[-1].dirnx < 0
+
+    @property
+    def tail_going_right(self):
+        return self.body[-1].dirnx > 0
 
     @property
     def obstacle_ahead(self):
@@ -86,11 +103,20 @@ class Snake():
         if self.dirnx == 0:
             direction = 1 if self.dirny > 0 else -1
             check_pos = (x, y + direction)
-            return (check_pos[1] >= gm.rows or check_pos[1] < 0) or (check_pos in self.body)
+            # return (check_pos[1] >= gm.rows or check_pos[1] < 0) or (check_pos in self.body)
         elif self.dirny == 0:
             direction = 1 if self.dirnx > 0 else -1
             check_pos = (x + direction, y)
-            return (check_pos[1] >= gm.rows or check_pos[0] < 0) or (check_pos in self.body)
+            # return (check_pos[1] >= gm.rows or check_pos[0] < 0) or (check_pos in self.body)
+        
+        check_x, check_y = check_pos
+        # Wall collision
+        if check_x < 0 or check_x >= gm.rows or check_y < 0 or check_y >= gm.rows:
+            return True
+        # Body collision
+        for cube in self.body:
+            if check_pos == cube.pos:
+                return True
         return False
 
     @property
@@ -107,14 +133,28 @@ class Snake():
 
         elif self.dirny == 0:
             direction = 1 if self.dirnx > 0 else -1
-            check_right = (x, y - direction)
-            check_left = (x, y + direction)
-
+            check_right = (x, y + direction)
+            check_left = (x, y - direction)
         else:
             print("Warning: obstacle_left_right cannot determine direction!")
 
-        return check_left in self.body, check_right in self.body
+        # return check_left in self.body, check_right in self.body
+        left, right = False, False
+        for cube in self.body:
+            if check_left == cube.pos:
+                left = True
+            if check_right == cube.pos:
+                right = True
 
+        # in addition, check if the wall is on the left or right
+        left_x, left_y = check_left
+        if left_x < 0 or left_x >= gm.rows or left_y < 0 or left_y >= gm.rows:
+            left = True
+        right_x, right_y = check_right
+        if right_x < 0 or right_x >= gm.rows or right_y < 0 or right_y >= gm.rows:
+            right = True
+        
+        return left, right
     
 
     def has_eaten(self, position):
@@ -187,13 +227,13 @@ class Snake():
             tail = self.body[-1]
             dx, dy = tail.dirnx, tail.dirny
 
-            if self.isGoingRight:
+            if self.tail_going_right:
                 self.body.append(Cube((tail.pos[0] - 1, tail.pos[1]), self.color))
-            elif self.isGoingLeft:
+            elif self.tail_going_left:
                 self.body.append(Cube((tail.pos[0] + 1, tail.pos[1]), self.color))
-            elif self.isGoingDown:
+            elif self.tail_going_down:
                 self.body.append(Cube((tail.pos[0], tail.pos[1] - 1), self.color))
-            elif self.isGoingUp:
+            elif self.tail_going_up:
                 self.body.append(Cube((tail.pos[0], tail.pos[1] + 1), self.color))
 
             self.body[-1].dirnx = dx
@@ -203,10 +243,10 @@ class Snake():
         self.head = Cube(pos, self.color)
         self.body = []
         self.body.append(self.head)
-        self.grow()
         self.turns = {}
         self.dirnx = 0
-        self.dirny = 1
+        self.dirny = -1
+        self.grow()
 
     def draw(self, surface):
         for i, cube in enumerate(self.body):
@@ -216,49 +256,25 @@ class Snake():
                 cube.draw(surface)
 
     def turn_left(self):
-        if self.dirnx != 1:
+        if not self.dirnx > 0:
             self.dirnx = -1
             self.dirny = 0
             self.turns[self.head.pos[:]] = [self.dirnx, self.dirny]
     
     def turn_right(self):
-        if self.dirnx != -1:
+        if not self.dirnx < 0:
             self.dirnx = 1
             self.dirny = 0
             self.turns[self.head.pos[:]] = [self.dirnx, self.dirny]
     
     def turn_up(self):
-        if self.dirny != 1:
+        if not self.dirny > 0:
             self.dirnx = 0
             self.dirny = -1
             self.turns[self.head.pos[:]] = [self.dirnx, self.dirny]
     
     def turn_down(self):
-        if self.dirny != -1:
+        if not self.dirny < 0:
             self.dirnx = 0
             self.dirny = 1
             self.turns[self.head.pos[:]] = [self.dirnx, self.dirny]
-
-    @property
-    def isGoingRight(self):
-        if self.body[-1].dirnx == 1:
-            return True
-        return False
-
-    @property
-    def isGoingLeft(self):
-        if self.body[-1].dirnx == -1:
-            return True
-        return False
-    
-    @property
-    def isGoingUp(self):
-        if self.body[-1].dirny == -1:
-            return True
-        return False
-    
-    @property
-    def isGoingDown(self):
-        if self.body[-1].dirny == 1:
-            return True
-        return False
